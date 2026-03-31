@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Article {
+  id             String          @id @default(cuid())
+  externalId     String          @unique
+  sourceId       String
+  sourceLabel    String
+  sourceCategory SourceCategory
+  url            String
+  title          String
+  summary        String
+  excerpt        String?
+  publishedAt    DateTime
+  collectedAt    DateTime        @default(now())
+  authorityRank  Int             @default(0)
+  relevanceScore Float           @default(0)
+  dedupeKey      String
+  regions        String[]
+  tags           String[]
+  briefItems     DailyBriefItem[]
+
+  @@index([publishedAt])
+  @@index([sourceId, publishedAt])
+  @@index([dedupeKey, publishedAt])
+  @@index([url])
+}
+
+model DailyBrief {
+  id                String           @id @default(cuid())
+  briefDate         String           @unique
+  title             String
+  lead              String
+  generatedAt       DateTime         @default(now())
+  sourceWindowStart DateTime
+  sourceWindowEnd   DateTime
+  items             DailyBriefItem[]
+
+  @@index([generatedAt])
+}
+
+model DailyBriefItem {
+  id             String     @id @default(cuid())
+  briefId        String
+  articleId      String
+  position       Int
+  highlightScore Float      @default(0)
+  createdAt      DateTime   @default(now())
+  article        Article    @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  brief          DailyBrief @relation(fields: [briefId], references: [id], onDelete: Cascade)
+
+  @@unique([briefId, articleId])
+  @@unique([briefId, position])
+}
+
+enum SourceCategory {
+  RSS
+  PAGE
+}
