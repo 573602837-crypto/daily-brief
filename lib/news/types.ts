@@ -17,9 +17,9 @@ export type SourceDefinition = {
   fetchUrl: string;
   homepage: string;
   authorityRank: number;
-  regionHints: RegionId[];
-  tagHints?: TopicTag[];
-  requiresKeywords?: string[];
+  board: RegionId;
+  includeKeywords?: string[];
+  excludeKeywords?: string[];
 };
 
 export type RawArticleCandidate = {
@@ -27,16 +27,18 @@ export type RawArticleCandidate = {
   sourceId: string;
   sourceLabel: string;
   sourceCategory: "RSS" | "PAGE";
+  board: RegionId;
   url: string;
   title: string;
   excerpt: string;
+  contentText?: string;
   publishedAt: Date;
   authorityRank: number;
 };
 
 export type ClassifiedCandidate = RawArticleCandidate & {
   dedupeKey: string;
-  regions: RegionId[];
+  regions: [RegionId];
   tags: TopicTag[];
   relevanceScore: number;
   summary: string;
@@ -48,9 +50,16 @@ export type DailyBriefCard = {
   source: string;
   publishedAt: string;
   url: string;
-  regions: RegionId[];
+  regions: [RegionId];
   tags: TopicTag[];
   summary: string;
+};
+
+export type DailyBriefSection = {
+  id: RegionId;
+  label: string;
+  description: string;
+  items: DailyBriefCard[];
 };
 
 export type DailyBriefView = {
@@ -61,10 +70,11 @@ export type DailyBriefView = {
   sourceWindowLabel: string;
   itemCount: number;
   items: DailyBriefCard[];
+  sections: DailyBriefSection[];
 };
 
 export const REGION_LABELS: Record<RegionId, string> = {
-  europe: "欧洲",
+  europe: "欧盟",
   usa: "美国",
   asean: "东盟",
   "hungary-election": "匈牙利选举"

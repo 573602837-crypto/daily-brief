@@ -17,7 +17,7 @@ export default async function HomePage() {
         id: source.id,
         name: source.name,
         homepage: source.homepage,
-        regions: source.regionHints
+        regions: [source.board]
       }))}
     />
   );

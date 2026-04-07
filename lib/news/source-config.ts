@@ -2,64 +2,124 @@ import { SourceDefinition } from "@/lib/news/types";
 
 export const SOURCE_CATALOG: SourceDefinition[] = [
   {
-    id: "eu-commission-presscorner",
-    name: "欧盟委员会 Press Corner",
+    id: "politico-eu",
+    name: "Politico EU",
     sourceCategory: "RSS",
-    fetchUrl: "https://ec.europa.eu/commission/presscorner/api/rss?language=en",
-    homepage: "https://ec.europa.eu/commission/presscorner/home/en",
+    fetchUrl: "https://www.politico.eu/feed/",
+    homepage: "https://www.politico.eu",
     authorityRank: 10,
-    regionHints: ["europe"],
-    tagHints: ["policy", "diplomacy", "regional-cooperation", "sanctions", "summit"]
+    board: "europe",
+    includeKeywords: ["european union", "eu", "brussels", "commission", "parliament"],
+    excludeKeywords: ["hungary election", "sports"]
   },
   {
-    id: "europarl-press",
-    name: "欧洲议会 Press Releases",
+    id: "le-monde",
+    name: "Le Monde",
     sourceCategory: "RSS",
-    fetchUrl: "https://www.europarl.europa.eu/rss/doc/press-releases/en.xml",
-    homepage: "https://www.europarl.europa.eu/news/en/press-room",
+    fetchUrl: "https://www.lemonde.fr/en/international/rss_full.xml",
+    homepage: "https://www.lemonde.fr/en/",
     authorityRank: 9,
-    regionHints: ["europe"],
-    tagHints: ["parliament", "policy", "regional-cooperation"]
+    board: "europe",
+    includeKeywords: ["european union", "eu", "brussels", "european commission"]
   },
   {
-    id: "whitehouse-briefing-room",
-    name: "白宫 Briefing Room",
+    id: "guardian-europe",
+    name: "The Guardian Europe",
     sourceCategory: "RSS",
-    fetchUrl: "https://www.whitehouse.gov/briefing-room/feed/",
-    homepage: "https://www.whitehouse.gov/briefing-room/",
-    authorityRank: 10,
-    regionHints: ["usa"],
-    tagHints: ["policy", "diplomacy", "security", "summit"]
-  },
-  {
-    id: "state-department",
-    name: "美国国务院",
-    sourceCategory: "RSS",
-    fetchUrl: "https://www.state.gov/feed/",
-    homepage: "https://www.state.gov/",
-    authorityRank: 10,
-    regionHints: ["usa"],
-    tagHints: ["diplomacy", "policy", "security", "sanctions"]
-  },
-  {
-    id: "asean-official",
-    name: "ASEAN 官方",
-    sourceCategory: "RSS",
-    fetchUrl: "https://asean.org/feed/",
-    homepage: "https://asean.org/",
+    fetchUrl: "https://www.theguardian.com/world/europe-news/rss",
+    homepage: "https://www.theguardian.com/world/europe-news",
     authorityRank: 9,
-    regionHints: ["asean"],
-    tagHints: ["regional-cooperation", "summit", "diplomacy", "policy"]
+    board: "europe",
+    includeKeywords: ["european union", "eu", "brussels", "european parliament"]
   },
   {
-    id: "hungary-election-office",
-    name: "匈牙利国家选举办公室",
-    sourceCategory: "PAGE",
-    fetchUrl: "https://www.valasztas.hu/en/2026-parliamentary-elections",
-    homepage: "https://www.valasztas.hu/en/2026-parliamentary-elections",
+    id: "guardian-hungary",
+    name: "The Guardian (Hungary)",
+    sourceCategory: "RSS",
+    fetchUrl: "https://www.theguardian.com/world/rss",
+    homepage: "https://www.theguardian.com/world",
+    authorityRank: 9,
+    board: "hungary-election",
+    includeKeywords: ["hungary", "election", "orban", "orbán", "candidate", "campaign"]
+  },
+  {
+    id: "politico-eu-hungary",
+    name: "Politico EU (Hungary)",
+    sourceCategory: "RSS",
+    fetchUrl: "https://www.politico.eu/feed/",
+    homepage: "https://www.politico.eu",
     authorityRank: 10,
-    regionHints: ["hungary-election", "europe"],
-    tagHints: ["election", "policy"],
-    requiresKeywords: ["election", "vote", "parliament", "commission", "candidate", "register"]
+    board: "hungary-election",
+    includeKeywords: ["hungary", "hungarian", "election", "orban", "orbán", "tisza"]
+  },
+  {
+    id: "nyt-politics",
+    name: "The New York Times Politics",
+    sourceCategory: "RSS",
+    fetchUrl: "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml",
+    homepage: "https://www.nytimes.com/section/politics",
+    authorityRank: 10,
+    board: "usa",
+    includeKeywords: ["white house", "congress", "senate", "federal", "campaign", "election"]
+  },
+  {
+    id: "washington-post-politics",
+    name: "The Washington Post Politics",
+    sourceCategory: "RSS",
+    fetchUrl: "https://feeds.washingtonpost.com/rss/politics",
+    homepage: "https://www.washingtonpost.com/politics/",
+    authorityRank: 10,
+    board: "usa",
+    includeKeywords: ["white house", "congress", "senate", "administration", "campaign"]
+  },
+  {
+    id: "washington-post-world-us",
+    name: "The Washington Post World",
+    sourceCategory: "RSS",
+    fetchUrl: "https://feeds.washingtonpost.com/rss/world",
+    homepage: "https://www.washingtonpost.com/world/",
+    authorityRank: 9,
+    board: "usa",
+    includeKeywords: ["white house", "washington", "state department", "us foreign policy", "congress"]
+  },
+  {
+    id: "cna-asia",
+    name: "CNA Asia",
+    sourceCategory: "RSS",
+    fetchUrl: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml&category=6511",
+    homepage: "https://www.channelnewsasia.com/asia",
+    authorityRank: 10,
+    board: "asean",
+    includeKeywords: ["asean", "singapore", "malaysia", "indonesia", "thailand", "philippines", "vietnam"]
+  },
+  {
+    id: "bangkok-post-world",
+    name: "Bangkok Post",
+    sourceCategory: "RSS",
+    fetchUrl: "https://www.bangkokpost.com/rss/data/world.xml",
+    homepage: "https://www.bangkokpost.com",
+    authorityRank: 9,
+    board: "asean",
+    includeKeywords: ["thailand", "asean", "myanmar", "cambodia", "laos", "vietnam"]
+  },
+  {
+    id: "jakarta-post",
+    name: "The Jakarta Post",
+    sourceCategory: "RSS",
+    fetchUrl: "https://www.thejakartapost.com/rss",
+    homepage: "https://www.thejakartapost.com",
+    authorityRank: 9,
+    board: "asean",
+    includeKeywords: ["indonesia", "asean", "jakarta", "south china sea", "regional"]
+  },
+  {
+    id: "straits-times-asia",
+    name: "The Straits Times",
+    sourceCategory: "RSS",
+    fetchUrl: "https://www.straitstimes.com/news/asia/rss.xml",
+    homepage: "https://www.straitstimes.com",
+    authorityRank: 9,
+    board: "asean",
+    includeKeywords: ["singapore", "asean", "southeast asia", "manila", "jakarta", "bangkok"]
   }
 ];

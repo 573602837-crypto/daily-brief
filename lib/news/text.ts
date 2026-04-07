@@ -49,6 +49,26 @@ export function trimText(input: string, maxLength: number): string {
   return `${input.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
 }
 
+export function buildExcerptLead(input: string, maxLength = 120): string {
+  const cleaned = input
+    .replace(/\([^)]+(reuters|ap|afp)[^)]+\)/gi, " ")
+    .replace(/\bBy\s+[A-Z][A-Za-z.\s-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) {
+    return "";
+  }
+
+  const sentences = cleaned
+    .split(/(?<=[.!?。；;])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 18);
+
+  const lead = sentences.slice(0, 2).join(" ");
+  return trimText(lead || cleaned, maxLength);
+}
+
 export function normalizeTokens(input: string): string[] {
   return input
     .toLowerCase()

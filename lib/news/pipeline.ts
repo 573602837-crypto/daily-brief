@@ -1,9 +1,10 @@
 import { prisma } from "@/lib/db";
 import { appConfig } from "@/lib/settings";
+import { BOARD_DEFINITIONS, BOARD_BY_ID } from "@/lib/news/boards";
 import { classifyArticle } from "@/lib/news/classify";
-import { fetchSource } from "@/lib/news/fetch";
+import { fetchArticleContent, fetchSource } from "@/lib/news/fetch";
 import { SOURCE_CATALOG } from "@/lib/news/source-config";
-import { ClassifiedCandidate, RegionId } from "@/lib/news/types";
+import { ClassifiedCandidate, RawArticleCandidate, RegionId } from "@/lib/news/types";
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 type CandidateLike = {
@@ -36,40 +37,57 @@ function dedupeCandidates<T extends CandidateLike>(candidates: T[]): T[] {
   return Array.from(bestByKey.values());
 }
 
-function selectBalancedArticles<T extends ClassifiedCandidate>(candidates: T[], limit = 12): T[] {
-  const sorted = [...candidates].sort((left, right) => right.relevanceScore - left.relevanceScore);
-  const selected: T[] = [];
-  const remaining = [...sorted];
-  const priorityRegions: RegionId[] = ["europe", "usa", "asean", "hungary-election"];
-
-  for (const region of priorityRegions) {
-    const index = remaining.findIndex((candidate) => candidate.regions.includes(region));
-    if (index >= 0) {
-      selected.push(remaining.splice(index, 1)[0]);
-    }
-  }
-
-  while (selected.length < limit && remaining.length > 0) {
-    selected.push(remaining.shift()!);
-  }
-
-  return selected.slice(0, limit);
+function buildLead(): string {
+  return "本期按四个独立板块编排：欧盟、美国、东盟、匈牙利选举。每个板块只从对应地区媒体中按独立关键词抓取，不再相互混合。";
 }
 
-function buildLead(candidates: ClassifiedCandidate[]): string {
-  const seenRegions = new Set(candidates.flatMap((candidate) => candidate.regions));
-  const coverage = [
-    seenRegions.has("europe") ? "欧洲" : null,
-    seenRegions.has("usa") ? "美国" : null,
-    seenRegions.has("asean") ? "东盟" : null,
-    seenRegions.has("hungary-election") ? "匈牙利选举" : null
-  ]
-    .filter(Boolean)
-    .join("、");
+function buildBoardOrderedSelection(candidates: PersistedCandidate[]): PersistedCandidate[] {
+  const selected: PersistedCandidate[] = [];
 
-  return coverage
-    ? `本期聚焦${coverage}过去 24 小时的重要外交、政策、议会与安全动态。`
-    : "本期聚焦过去 24 小时内权威来源发布的国际时政动态。";
+  for (const board of BOARD_DEFINITIONS) {
+    const boardItems = dedupeCandidates(
+      candidates
+        .filter((candidate) => candidate.regions[0] === board.id)
+        .sort((left, right) => right.relevanceScore - left.relevanceScore)
+    ).slice(0, board.desiredCount);
+
+    selected.push(...boardItems);
+  }
+
+  return selected;
+}
+
+async function enrichCandidates(candidates: RawArticleCandidate[]): Promise<RawArticleCandidate[]> {
+  const settled = await Promise.allSettled(
+    candidates.map(async (candidate) => ({
+      ...candidate,
+      contentText: await fetchArticleContent(candidate.url)
+    }))
+  );
+
+  return settled.map((result, index) => {
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+
+    return candidates[index];
+  });
+}
+
+function preliminarilyScopeCandidates(candidates: RawArticleCandidate[]): RawArticleCandidate[] {
+  return candidates.filter((candidate) => {
+    const source = SOURCE_CATALOG.find((item) => item.id === candidate.sourceId);
+    if (!source) {
+      return false;
+    }
+
+    const board = BOARD_BY_ID[source.board];
+    const text = `${candidate.title} ${candidate.excerpt}`.toLowerCase();
+    const boardHits = board.keywords.filter((keyword) => text.includes(keyword)).length;
+    const sourceHits = (source.includeKeywords || []).filter((keyword) => text.includes(keyword)).length;
+
+    return boardHits + sourceHits > 0;
+  });
 }
 
 export async function runDailyPipeline(now = new Date()) {
@@ -80,16 +98,24 @@ export async function runDailyPipeline(now = new Date()) {
   const windowStart = new Date(now.getTime() - DAY_IN_MS);
   const settled = await Promise.allSettled(SOURCE_CATALOG.map((source) => fetchSource(source)));
   const rawCandidates = settled.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
+  const recentCandidates = rawCandidates.filter((candidate) => candidate.publishedAt >= windowStart);
+  const scopedCandidates = preliminarilyScopeCandidates(recentCandidates);
+  const enrichedCandidates = await enrichCandidates(scopedCandidates);
 
-  const classified = rawCandidates
-    .filter((candidate) => candidate.publishedAt >= windowStart)
+  const classified = enrichedCandidates
     .map((candidate) => {
       const source = SOURCE_CATALOG.find((item) => item.id === candidate.sourceId);
       if (!source) {
         return null;
       }
 
-      const classification = classifyArticle(source, candidate.title, candidate.excerpt);
+      const classification = classifyArticle(
+        source,
+        candidate.title,
+        candidate.excerpt,
+        candidate.contentText
+      );
+
       if (!classification) {
         return null;
       }
@@ -109,7 +135,7 @@ export async function runDailyPipeline(now = new Date()) {
       update: {
         title: item.title,
         summary: item.summary,
-        excerpt: item.excerpt,
+        excerpt: item.contentText || item.excerpt,
         publishedAt: item.publishedAt,
         authorityRank: item.authorityRank,
         relevanceScore: item.relevanceScore,
@@ -125,7 +151,7 @@ export async function runDailyPipeline(now = new Date()) {
         url: item.url,
         title: item.title,
         summary: item.summary,
-        excerpt: item.excerpt,
+        excerpt: item.contentText || item.excerpt,
         publishedAt: item.publishedAt,
         authorityRank: item.authorityRank,
         relevanceScore: item.relevanceScore,
@@ -151,23 +177,24 @@ export async function runDailyPipeline(now = new Date()) {
     sourceId: article.sourceId,
     sourceLabel: article.sourceLabel,
     sourceCategory: article.sourceCategory === "PAGE" ? "PAGE" : "RSS",
+    board: (article.regions[0] as RegionId) || "europe",
     url: article.url,
     title: article.title,
     summary: article.summary,
     excerpt: article.excerpt || article.summary,
+    contentText: article.excerpt || article.summary,
     publishedAt: article.publishedAt,
     authorityRank: article.authorityRank,
     relevanceScore: article.relevanceScore,
     dedupeKey: article.dedupeKey,
-    regions: article.regions as PersistedCandidate["regions"],
+    regions: [(article.regions[0] as RegionId) || "europe"],
     tags: article.tags as PersistedCandidate["tags"]
   }));
 
-  const selected = selectBalancedArticles(dedupeCandidates(recentCandidatePool));
-
+  const selected = buildBoardOrderedSelection(recentCandidatePool);
   const briefDate = formatBriefDate(now);
   const title = `${briefDate} 国际时政日报`;
-  const lead = buildLead(selected);
+  const lead = buildLead();
 
   const brief = await prisma.dailyBrief.upsert({
     where: { briefDate },
@@ -208,6 +235,7 @@ export async function runDailyPipeline(now = new Date()) {
   return {
     briefDate,
     fetched: rawCandidates.length,
+    scoped: scopedCandidates.length,
     saved: deduped.length,
     selected: selected.length,
     failures: settled

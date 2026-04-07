@@ -41,11 +41,15 @@ function buildExternalId(source: SourceDefinition, seed: string): string {
 }
 
 async function fetchText(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
   const response = await fetch(url, {
     headers: {
       "User-Agent": "GlobalPoliticsDailyBot/0.1 (+https://example.com)"
-    }
-  });
+    },
+    signal: controller.signal
+  }).finally(() => clearTimeout(timeout));
 
   if (!response.ok) {
     throw new Error(`Failed to fetch ${url}: ${response.status}`);
@@ -78,6 +82,7 @@ async function fetchRssSource(source: SourceDefinition): Promise<RawArticleCandi
           sourceId: source.id,
           sourceLabel: source.name,
           sourceCategory: "RSS" as const,
+          board: source.board,
           url: link,
           title,
           excerpt: trimText(excerpt || title, 360),
@@ -118,6 +123,7 @@ async function fetchRssSource(source: SourceDefinition): Promise<RawArticleCandi
           sourceId: source.id,
           sourceLabel: source.name,
           sourceCategory: "RSS" as const,
+          board: source.board,
           url: firstLink,
           title,
           excerpt: trimText(summary || title, 360),
@@ -150,6 +156,7 @@ async function fetchPageSnapshotSource(source: SourceDefinition): Promise<RawArt
       sourceId: source.id,
       sourceLabel: source.name,
       sourceCategory: "PAGE",
+      board: source.board,
       url: source.fetchUrl,
       title,
       excerpt,
@@ -165,4 +172,33 @@ export async function fetchSource(source: SourceDefinition): Promise<RawArticleC
   }
 
   return fetchPageSnapshotSource(source);
+}
+
+function uniqueParagraphs(paragraphs: string[]): string[] {
+  const seen = new Set<string>();
+
+  return paragraphs.filter((paragraph) => {
+    const normalized = paragraph.toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]/g, "");
+    if (normalized.length < 40 || seen.has(normalized)) {
+      return false;
+    }
+
+    seen.add(normalized);
+    return true;
+  });
+}
+
+export async function fetchArticleContent(url: string): Promise<string> {
+  const html = await fetchText(url);
+  const paragraphMatches = Array.from(html.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi));
+  const paragraphs = uniqueParagraphs(
+    paragraphMatches
+      .map((match) => cleanHtmlToText(match[1] || ""))
+      .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+  )
+    .filter((paragraph) => paragraph.length >= 60)
+    .slice(0, 12);
+
+  const fallback = cleanHtmlToText(html).slice(0, 2400);
+  return trimText((paragraphs.join(" ") || fallback).trim(), 2400);
 }
